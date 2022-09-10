@@ -36,7 +36,11 @@ public class CliApp {
         init(args);
         while (!haveLoginData()) {
             System.out.print(LOGIN.getDesc());
-            String[] loginData = consoleInput.nextLine().split(" ");
+            String userInput = consoleInput.nextLine();
+            if (userInput.trim().toUpperCase().equals(EXIT.name())) {
+                System.exit(0);
+            }
+            String[] loginData = userInput.split(" ");
             if (loginData.length != 3) {
                 System.out.println("Incorrect login-data. Please try again");
             } else {

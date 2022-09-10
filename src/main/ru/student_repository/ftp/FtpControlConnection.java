@@ -78,7 +78,6 @@ public class FtpControlConnection implements AutoCloseable {
 
     public int getReply() throws IOException {
         String response = bufferedReader.readLine();
-        System.out.println(response);
         if (response == null) {
             throw new FtpConnectionException("Connection closed without reply code");
         }
@@ -103,7 +102,6 @@ public class FtpControlConnection implements AutoCloseable {
                     throw new FtpConnectionException("Connection closed without reply code");
                 }
                 length = response.length();
-                System.out.println(response);
             } while (!(length > CODE_LENGTH && response.charAt(CODE_LENGTH) != '-' && Character.isDigit(response.charAt(0))));
         } else if (FtpReply.isPositivePreliminary(replyCode)) {
             getReply();
