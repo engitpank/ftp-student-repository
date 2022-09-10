@@ -1,14 +1,15 @@
 package main.ru.student_repository.ftp;
 
+import main.ru.student_repository.ftp.exception.InvalidReplyException;
+
 import java.io.IOException;
 import java.net.Socket;
-import java.nio.file.Files;
-import java.nio.file.Path;
 import java.util.Arrays;
 import java.util.Objects;
 import java.util.stream.Collectors;
 
 import static main.ru.student_repository.ftp.FtpCommand.RETRIEVE;
+import static main.ru.student_repository.ftp.FtpReply.FILE_STATUS_OK;
 
 public class FtpClient implements AutoCloseable {
 
@@ -16,18 +17,18 @@ public class FtpClient implements AutoCloseable {
 
     private static final int DEFAULT_PORT = 21;
 
-    private boolean enablePassiveMode = true;
+    private boolean isPassiveMode = true;
 
     private final String host;
     private final int port;
     private final String user;
     private final String password;
 
-    public FtpClient(String host, String user, String password) {
+    public FtpClient(String host, String user, String password) throws IOException {
         this(host, DEFAULT_PORT, user, password);
     }
 
-    public FtpClient(String host, int port, String user, String password) {
+    public FtpClient(String host, int port, String user, String password) throws IOException, InvalidReplyException {
         Objects.requireNonNull(host);
         Objects.requireNonNull(user);
         Objects.requireNonNull(password);
@@ -35,19 +36,16 @@ public class FtpClient implements AutoCloseable {
         this.port = port;
         this.user = user;
         this.password = password;
+        connect();
     }
 
-    public void connect() {
-        try {
-            controlConnection = new FtpControlConnection(host, port);
-            controlConnection.login(user, password);
-        } catch (IOException e) {
-            throw new RuntimeException(e);
-        }
+    private void connect() throws IOException {
+        controlConnection = new FtpControlConnection(host, port);
+        controlConnection.login(user, password);
     }
 
     private FtpDataConnection getDataConnect() throws IOException {
-        if (enablePassiveMode) {
+        if (isPassiveMode) {
             String data = controlConnection.getDataForPassiveConnection();
             String[] ip = data.split(",");
             int port = Integer.parseInt(ip[ip.length - 2]) * 256 + Integer.parseInt(ip[ip.length - 1]);
@@ -62,47 +60,25 @@ public class FtpClient implements AutoCloseable {
         try (FtpDataConnection dataConnection = getDataConnect()) {
             controlConnection.sendCommand(FtpCommand.STORE, filename);
             dataConnection.writeToServer(data);
-        } catch (IOException e) {
-            throw new IOException(e);
         }
     }
 
-    public void writeBytes(byte[] data, String filename) throws IOException {
+    public String readAsString(String filePath) throws IOException {
         try (FtpDataConnection dataConnection = getDataConnect()) {
-            controlConnection.sendCommand(FtpCommand.STORE, filename);
-            dataConnection.writeToServer(data);
-        } catch (IOException e) {
-            throw new IOException(e);
-        }
-    }
-
-    public void writeFile(Path filePath) throws IOException {
-        try (FtpDataConnection dataConnection = getDataConnect()) {
-            controlConnection.sendCommand(FtpCommand.STORE, filePath.toString());
-            dataConnection.writeToServer(Files.readAllBytes(filePath));
-        } catch (IOException e) {
-            throw new IOException(e);
-        }
-    }
-
-    public String readAsString(Path filePath) throws IOException {
-        try (FtpDataConnection dataConnection = getDataConnect()) {
-            controlConnection.sendCommand(RETRIEVE, filePath.toString());
+            controlConnection.sendCommand(RETRIEVE, filePath);
             int code = controlConnection.getReply();
-            if (FtpReply.TRANSFER_COMPLETE != code) {
-                throw new RuntimeException("Don't excepted reply: " + code);
+            if (FtpReply.TRANSFER_COMPLETE != code && FILE_STATUS_OK != code) {
+                throw new InvalidReplyException(code, "Don't expected code: " + code);
             }
             return dataConnection.readFromServer();
-        } catch (IOException e) {
-            throw new IOException(e);
         }
     }
 
-    public void close() {
-        try {
-            controlConnection.close();
-        } catch (IOException e) {
-            throw new RuntimeException(e);
-        }
+    public void close() throws IOException {
+        controlConnection.close();
+    }
+
+    public void setPassiveMode(boolean passiveMode) {
+        isPassiveMode = passiveMode;
     }
 }

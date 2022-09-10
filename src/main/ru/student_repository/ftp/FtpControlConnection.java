@@ -1,5 +1,8 @@
 package main.ru.student_repository.ftp;
 
+import main.ru.student_repository.ftp.exception.FtpConnectionException;
+import main.ru.student_repository.ftp.exception.InvalidReplyException;
+
 import java.io.*;
 import java.net.InetAddress;
 import java.net.ServerSocket;
@@ -9,7 +12,6 @@ import java.util.Objects;
 import static main.ru.student_repository.ftp.FtpCommand.*;
 
 public class FtpControlConnection implements AutoCloseable {
-    private static final int DEFAULT_PORT = 21;
     private static final int CODE_LENGTH = 3;
 
     private final Socket controlConnection;
@@ -20,9 +22,7 @@ public class FtpControlConnection implements AutoCloseable {
     private String dataForPassiveConnection;
     private final OutputStreamWriter requestWriter;
 
-    public FtpControlConnection(String host) throws IOException {
-        this(host, DEFAULT_PORT);
-    }
+    private int replyCode;
 
     public FtpControlConnection(String host, int port) throws IOException {
         Objects.requireNonNull(host);
@@ -31,24 +31,21 @@ public class FtpControlConnection implements AutoCloseable {
         request = controlConnection.getOutputStream();
         bufferedReader = new BufferedReader(new InputStreamReader(response));
         requestWriter = new OutputStreamWriter(request);
-
-        System.out.println(controlConnection.getLocalSocketAddress());
-
     }
 
-    public void login(String user, String password) throws IOException {
+    public void login(String user, String password) throws IOException, InvalidReplyException {
         if (FtpReply.SERVER_READY != getReply()) {
-            throw new RuntimeException("Server doesn't available");
+            throw new InvalidReplyException(replyCode, "Server doesn't available");
         }
 
         sendCommand(USERNAME, user);
         if (FtpReply.EXCEPT_PASSWORD != getReply()) {
-            throw new RuntimeException("Invalid login");
+            throw new InvalidReplyException(replyCode, "Invalid login");
         }
 
         sendCommand(PASSWORD, password);
         if (FtpReply.LOGIN_SUCCESSFUL != getReply()) {
-            throw new RuntimeException("Invalid password");
+            throw new InvalidReplyException(replyCode, "Invalid password");
         }
     }
 
@@ -81,20 +78,34 @@ public class FtpControlConnection implements AutoCloseable {
 
     public int getReply() throws IOException {
         String response = bufferedReader.readLine();
+        System.out.println(response);
         if (response == null) {
-            throw new RuntimeException("Connection closed without code");
-        } else if (response.length() < CODE_LENGTH) {
-            throw new RuntimeException("Unsupported server reply: " + response);
+            throw new FtpConnectionException("Connection closed without reply code");
         }
-
-        int replyCode;
+        int length = response.length();
+        if (length < CODE_LENGTH) {
+            throw new InvalidReplyException("Unsupported server reply: ");
+        }
         try {
             replyCode = Integer.parseInt(response.substring(0, CODE_LENGTH));
         } catch (NumberFormatException e) {
             throw new NumberFormatException("Could not parse response code. " + response);
         }
 
-        if (FtpReply.isPositivePreliminary(replyCode)) {
+        if (FtpReply.CLOSING_CONTROL_CONNECTION == replyCode) {
+            throw new FtpConnectionException("Broke connection. Server not available");
+        }
+
+        if (length > CODE_LENGTH && response.charAt(CODE_LENGTH) == '-') {
+            do {
+                response = bufferedReader.readLine();
+                if (response == null) {
+                    throw new FtpConnectionException("Connection closed without reply code");
+                }
+                length = response.length();
+                System.out.println(response);
+            } while (!(length > CODE_LENGTH && response.charAt(CODE_LENGTH) != '-' && Character.isDigit(response.charAt(0))));
+        } else if (FtpReply.isPositivePreliminary(replyCode)) {
             getReply();
         } else if (FtpReply.ENTERING_PASSIVE_MODE == replyCode) {
             dataForPassiveConnection = response.substring(response.indexOf('(') + 1, response.indexOf(')'));
@@ -102,22 +113,14 @@ public class FtpControlConnection implements AutoCloseable {
         return replyCode;
     }
 
-    public void sendCommand(FtpCommand command) {
-        try {
-            requestWriter.write(String.format("%s\n", command.getCommand()));
-            requestWriter.flush();
-        } catch (IOException e) {
-            throw new RuntimeException(e);
-        }
+    public void sendCommand(FtpCommand command) throws IOException {
+        requestWriter.write(String.format("%s\n", command.getCommand()));
+        requestWriter.flush();
     }
 
-    public void sendCommand(FtpCommand command, String arg) {
-        try {
-            requestWriter.write(String.format("%s %s\n", command.getCommand(), arg));
-            requestWriter.flush();
-        } catch (IOException e) {
-            throw new RuntimeException(e);
-        }
+    public void sendCommand(FtpCommand command, String arg) throws IOException {
+        requestWriter.write(String.format("%s %s\n", command.getCommand(), arg));
+        requestWriter.flush();
     }
 
     @Override
