@@ -30,6 +30,7 @@ public class CliApp {
     private static String username;
     private static String password;
     private static String host;
+    private static Integer activeModePort;
 
     public static void main(String[] args) {
         Scanner consoleInput = new Scanner(System.in);
@@ -127,6 +128,7 @@ public class CliApp {
                     break;
                 case ACTIVE_DATA_MODE:
                     passiveDataMode = false;
+                    activeModePort = option.getValue() != null ? Integer.valueOf(option.getValue()) : null;
                     break;
             }
         }
@@ -139,8 +141,8 @@ public class CliApp {
     }
 
     private static void sendToRemoteStorage() {
-        try (FtpClient client = getConnection(host, username, password)) {
-            client.setPassiveMode(passiveDataMode);
+        try (FtpClient client = getConnection(host, username, password, passiveDataMode, activeModePort)) {
+
             client.writeString(StudentUtil.ListToJsonString(storage.getAllSorted()), filePath);
         } catch (IOException | IllegalArgumentException | InvalidReplyException e) {
             System.out.println("Failed to send to the server. Please try login again");
@@ -149,8 +151,8 @@ public class CliApp {
 
     private static Storage<Student> getRemoteStorage() {
         DataCharBuffer dataBuffer;
-        try (FtpClient client = getConnection(host, username, password)) {
-            client.setPassiveMode(passiveDataMode);
+        try (FtpClient client = getConnection(host, username, password, passiveDataMode, activeModePort)) {
+
             dataBuffer = new DataCharBuffer(client.readAsString(DEFAULT_PATH).toCharArray());
         } catch (IOException | IllegalArgumentException | InvalidReplyException e) {
             System.out.println("Failed to download from the server: " + e.getMessage());

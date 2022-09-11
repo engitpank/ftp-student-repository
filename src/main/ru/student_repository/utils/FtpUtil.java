@@ -7,16 +7,21 @@ import java.io.IOException;
 
 public class FtpUtil {
 
-    public static FtpClient getConnection(String host, String username, String password) throws IOException, IllegalArgumentException, InvalidReplyException {
+    public static FtpClient getConnection(String host, String username, String password, Boolean isPassiveMode, Integer activeModePort) throws IOException, IllegalArgumentException, InvalidReplyException {
+        FtpClient client;
         if (isValidHost(host) && isValidUsername(username) && isValidPassword(password)) {
             if (containsValidPort(host)) {
                 String ip = host.split(":")[0];
                 int port = Integer.parseInt(host.split(":")[1]);
-                return new FtpClient(ip, port, username, password);
+                client = new FtpClient(ip, port, username, password);
             } else {
-                return new FtpClient(host, username, password);
+                client = new FtpClient(host, username, password);
             }
+            client.setPassiveMode(isPassiveMode);
+            client.setActiveModePort(activeModePort);
+            return client;
         }
+
         throw new IllegalArgumentException("Illegal argument for FtpClient: " + host + ", " + username + ", " + password);
     }
 

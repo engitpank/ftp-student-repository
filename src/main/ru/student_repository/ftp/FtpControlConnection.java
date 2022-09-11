@@ -57,20 +57,18 @@ public class FtpControlConnection implements AutoCloseable {
         return dataForPassiveConnection;
     }
 
-    public Socket getSocketForActiveConnection() throws IOException {
-        try (ServerSocket serverSocket = new ServerSocket(0)) {
+    public Socket getSocketForActiveConnection(Integer port) throws IOException {
+        if (port == null) {
+            port = 0; // default port
+        }
+        try (ServerSocket serverSocket = new ServerSocket(port)) {
             String hostAddress = InetAddress.getLocalHost().getHostAddress();
-            int port = serverSocket.getLocalPort();
+            int serverPort = serverSocket.getLocalPort();
+            int encPort1 = serverPort / 256;
+            int encPort2 = serverPort - encPort1 * 256;
 
-            StringBuilder arg = new StringBuilder();
-            arg.append(hostAddress.replace(".", ","));
-            arg.append(",");
-            int num = port >>> 8;
-            arg.append(num);
-            arg.append(",");
-            num = port & 0xff;
-            arg.append(num);
-            sendCommand(DATA_PORT, arg.toString());
+            sendCommand(DATA_PORT, hostAddress.replace(".", ",") + String.format(
+                    ",%d,%d", encPort1, encPort2));
             return serverSocket.accept();
         }
     }

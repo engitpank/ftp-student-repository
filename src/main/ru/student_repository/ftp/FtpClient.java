@@ -21,6 +21,7 @@ public class FtpClient implements AutoCloseable {
 
     private final String host;
     private final int port;
+    private Integer activeModePort = null;
     private final String user;
     private final String password;
 
@@ -52,7 +53,7 @@ public class FtpClient implements AutoCloseable {
             String host = Arrays.stream(ip).limit(4).collect(Collectors.joining("."));
             return new FtpDataConnection(host, port);
         }
-        Socket socket = controlConnection.getSocketForActiveConnection();
+        Socket socket = controlConnection.getSocketForActiveConnection(activeModePort);
         return new FtpDataConnection(socket);
     }
 
@@ -80,5 +81,9 @@ public class FtpClient implements AutoCloseable {
 
     public void setPassiveMode(boolean passiveMode) {
         isPassiveMode = passiveMode;
+    }
+
+    public void setActiveModePort(Integer activeModePort) {
+        this.activeModePort = activeModePort;
     }
 }
