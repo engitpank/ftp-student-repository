@@ -8,8 +8,6 @@ import org.testng.collections.Lists;
 
 import java.util.List;
 
-import static org.testng.Assert.*;
-
 public class StudentUtilTest {
 
     private final static String jsonString = "{\n" +
