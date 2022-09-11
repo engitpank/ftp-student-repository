@@ -57,13 +57,13 @@ public class CliApp {
         System.out.println(ConsoleCommand.getAllCommands());
 
         String line = readCommandLine(consoleInput);
-        while (!Objects.equals(line, EXIT.name())) {
+        while (!Objects.equals(line, EXIT.getCommand())) {
 
-            ConsoleCommand command = ConsoleCommand.isCommand(line) ? ConsoleCommand.valueOf(line) : INVALID_COMMAND;
+            ConsoleCommand command = ConsoleCommand.getConsoleCommand(line);
 
             if (INVALID_COMMAND == command) {
                 System.out.println(INVALID_COMMAND.getDesc());
-                System.out.println(getAllCommands());
+                System.out.println(ConsoleCommand.getAllCommands());
             } else if (haveLoginData()) {
                 switch (command) {
                     case GET_LIST: {
@@ -94,13 +94,23 @@ public class CliApp {
                     case GET_STUDENT: {
                         System.out.print(GET_STUDENT.getDesc());
                         int id = tryReadInt(consoleInput);
-                        if (id != INVALID_VALUE) {
-                            System.out.println(storage.get(id).getName());
-                        } else {
+                        Student student = storage.get(id);
+                        if (id == INVALID_VALUE) {
                             System.out.println("Incorrect id. Please try again");
+                        } else if (student == null) {
+                            System.out.println("There's no student with ID: " + id);
+                        } else {
+                            System.out.println("Student info: id " + id + " " + student.getName());
                         }
                         break;
                     }
+                    case LOGIN: {
+                        System.out.println("You're already logged in");
+                        break;
+                    }
+                    default:
+                        System.out.println("Unsupported command. Write /help ");
+                        break;
                 }
             }
             line = readCommandLine(consoleInput);
@@ -123,7 +133,6 @@ public class CliApp {
                     host = option.getValue();
                     break;
                 case FILEPATH:
-//                    filePath = Paths.get(option.getValue());
                     filePath = option.getValue();
                     break;
                 case ACTIVE_DATA_MODE:

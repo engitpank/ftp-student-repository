@@ -18,7 +18,7 @@ public class ConsoleUtil {
 
     public static String readCommandLine(Scanner input) {
         System.out.print("Enter command: ");
-        return input.nextLine().trim().toUpperCase(Locale.ROOT);
+        return input.nextLine().trim().toLowerCase();
     }
 
     public static Map<ConsoleOption, String> getActiveOption(String[] args) {
