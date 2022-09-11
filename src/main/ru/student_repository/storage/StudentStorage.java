@@ -46,4 +46,14 @@ public class StudentStorage implements Storage<Student> {
         sortedList.sort(Comparator.comparing(Student::getName).thenComparing(Student::getId));
         return sortedList;
     }
+
+    @Override
+    public void clear() {
+        map.clear();
+    }
+
+    @Override
+    public int size() {
+        return map.size();
+    }
 }

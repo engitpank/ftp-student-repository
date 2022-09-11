@@ -16,4 +16,8 @@ public interface Storage<T> {
 
     // ORDERED name desc
     List<Student> getAllSorted();
+
+    void clear();
+
+    int size();
 }
